@@ -14,6 +14,9 @@ pip install -e ".[dev]"
 pytest                      # everything should pass before you start
 ```
 
+On Windows, clone into a short path (e.g. `C:\code\`). Installing PyTorch can fail in deeply
+nested folders because of Windows' path length limit.
+
 ## 2. Write the method
 
 Work on a branch: `git checkout -b method/<name>`. Create `shrinker/methods/<name>.py`
@@ -123,9 +126,11 @@ python examples/demo.py --synthetic --method <name>   # end to end, with a befor
 
 ## 4. Open a pull request
 
-- Push your branch and open a pull request.
-- CI runs `pytest` on every PR. It must pass before merging.
-- Add your method to the **Available methods** table in `README.md`.
+- Before opening the PR, bring in the latest `main` so your method is tested together with
+  everyone else's: `git pull origin main`, then run `pytest` again.
+- Push your branch and open a pull request. CI runs `pytest` on it; it must pass before merging.
+- Don't edit `README.md`: two PRs adding rows to the same table always conflict. The maintainer
+  adds your method to the README after merging.
 
 ## Code style
 

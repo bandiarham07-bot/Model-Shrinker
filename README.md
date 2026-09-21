@@ -83,6 +83,8 @@ Speed ("latency") is measured by actually running the model, not estimated.
 |---|---|
 | `l1_pruning` | Removes the filters/neurons with the smallest weights ([Li et al. 2017](https://arxiv.org/abs/1608.08710)) |
 
+`shrinker.describe_methods()` always lists every method that's installed.
+
 ## What's inside
 
 ```
