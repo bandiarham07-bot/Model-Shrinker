@@ -128,8 +128,43 @@ Then:
 3. Run `pytest`. Your method is automatically tested on all six test models.
 4. Push to a branch and open a pull request. CI runs the same tests.
 
-You never need to change any other file. Full guide: [CONTRIBUTING.md](CONTRIBUTING.md).
-Copy the pattern from [`l1_pruning.py`](shrinker/methods/l1_pruning.py).
+Copy the pattern from [`l1_pruning.py`](shrinker/methods/l1_pruning.py) or
+[`fpgm.py`](shrinker/methods/fpgm.py). Full guide: [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Rules
+
+1. **One file** in `shrinker/methods/`, named after the method. Optionally one test file in
+   `tests/`. **Don't change anything else.** Everything outside those two files is shared by the
+   whole team, and edits there cause conflicts and break other people's methods. If your method
+   really needs a new dependency or a change to the shared code, ask first.
+2. The method is one function:
+   ```python
+   from shrinker.registry import register
+
+   @register
+   def apply(model, ratio=0.3):      # every option needs a default, except `loader`
+       ...                           # `model` is already a copy: modify it freely
+       return model
+   ```
+   Shared option names: `ratio` (fraction to remove), `loader` (a DataLoader of `(x, y)` if the
+   method needs data), `example_input` (a sample batch if the method needs one).
+3. **Pruning methods only compute a score per channel.** The library does the surgery: it removes
+   the channels, fixes the following BatchNorm and the next layer, and skips unsafe layers.
+   ```python
+   from shrinker.utils import keep_indices, prunable_layers, prune_channels
+
+   for name, layer in prunable_layers(model):
+       scores = ...                                # one score per output channel, higher = keep
+       prune_channels(model, name, keep_indices(scores, ratio))
+   ```
+   Other methods replace layers with `shrinker.utils.replace_module(model, name, new_layer)`.
+4. **Remove, don't zero.** Setting weights to zero keeps the model the same size and speed.
+5. **Skip what you can't handle.** Leave unsupported layers or models unchanged and log it with
+   `logging`; never crash.
+6. **Run `pytest` before pushing**, and make sure it passes.
+
+Using an AI tool to write your method? Point it at this section first, and check its pull request
+only touches your own file.
 
 ## References
 
