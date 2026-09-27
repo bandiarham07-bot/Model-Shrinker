@@ -1,12 +1,10 @@
-"""Knowledge distillation (Hinton et al. 2015).
+"""Knowledge distillation
 
 Trains the model to match the soft probability outputs of a frozen copy of itself
 (the "teacher"), transferring dark knowledge about inter-class relationships.
 After distillation training, a small fraction of the weakest weights are zeroed
 to produce a sparser model.
 
-Reference: Hinton, Vinyals & Dean, "Distilling the Knowledge in a Neural Network",
-           arXiv:1503.02531, 2015.
 """
 
 from __future__ import annotations
@@ -77,13 +75,13 @@ def apply(
 ) -> nn.Module:
     """Train the model to mimic its own soft outputs (knowledge distillation), then sparsify."""
 
-    # --- 1. Snapshot a frozen teacher ------------------------------------------
+    # 1. Snapshot a frozen teacher 
     teacher = copy.deepcopy(model)
     teacher.eval()
     for p in teacher.parameters():
         p.requires_grad_(False)
 
-    # --- 2. Distillation training ---------------------------------------------
+    # 2. Distillation training 
     device = next(model.parameters()).device
     was_training = model.training
     model.train()
@@ -118,7 +116,7 @@ def apply(
 
     model.train(was_training)
 
-    # --- 3. Sparsify weakest weights ------------------------------------------
+    # 3. Sparsify weakest weights 
     _zero_smallest_weights(model, sparsity)
 
     return model
