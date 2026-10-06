@@ -1,10 +1,10 @@
 # Model Shrinker
 
-Take a PyTorch model you have **already trained** and get back a **smaller, faster copy** of it,
-while keeping as much accuracy as possible.
+**Hello FOSS · Web & Coding Club, IIT Bombay**
 
-Works with MLPs and CNNs (`nn.Linear`, `nn.Conv2d`, `nn.BatchNorm`). RNNs and Transformers are
-not supported yet. Everything runs on your own machine.
+Take a PyTorch model you have **already trained** and get back a **smaller, faster copy** of it, while keeping as much accuracy as possible.
+
+Works with MLPs and CNNs (`nn.Linear`, `nn.Conv2d`, `nn.BatchNorm`). RNNs and Transformers are not supported yet. Everything runs on your own machine.
 
 ## How it works
 
@@ -24,9 +24,7 @@ not supported yet. Everything runs on your own machine.
  4. save it and use the small model
 ```
 
-A **method** is one way of making a model smaller, for example removing the least important
-filters (pruning) or storing weights with fewer bits (quantization). Each method lives in its
-own file in `shrinker/methods/`, and the team keeps adding new ones.
+A **method** is one way of making a model smaller, for example removing the least important filters (pruning) or storing weights with fewer bits (quantization). Each method lives in its own file in `shrinker/methods/`.
 
 ## Install
 
@@ -69,39 +67,35 @@ Speed ("latency") is measured by actually running the model, not estimated.
 
 **Good to know**
 - `ratio=0.3` means "remove about 30%". Each method has its own options.
-- **Save the whole model** with `torch.save(small, path)` and load it with
-  `torch.load(path, weights_only=False)`. A shrunk model no longer fits your original class,
-  so `load_state_dict` into `MyNet()` won't work.
-- `example_input` is optional. If you give it, the library checks the small model still gives
-  the same output shape.
+- Save the whole model with `torch.save(small, path)` and load it with `torch.load(path, weights_only=False)`. A shrunk model no longer fits your original class, so `load_state_dict` into `MyNet()` won't work.
+- `example_input` is optional. If given, the library checks the small model still gives the same output shape.
 - Layers a method can't handle safely are left unchanged instead of being broken.
-- `shrinker.list_methods()` shows all available methods.
 
 ## Available methods
 
-| Method | What it does |
-|---|---|
-| `l1_pruning` | Removes the filters/neurons with the smallest weights ([Li et al. 2017](https://arxiv.org/abs/1608.08710)) |
+| Method | What it does | Paper |
+|---|---|---|
+| `l1_pruning` | Removes the filters/neurons with the smallest L1 norm | [Li et al. 2017](https://arxiv.org/abs/1608.08710) |
+| `fpgm` | Removes the most redundant filters, those closest to the geometric median | [He et al. 2019](https://arxiv.org/abs/1811.00250) |
+| `qat_quantization` | Quantization-aware training, gives an INT8 model for CPU | [Jacob et al. 2018](https://arxiv.org/abs/1712.05877) |
+| `dfq_quantization` | Data-free INT8 quantization with weight equalization and bias correction | [Nagel et al. 2019](https://arxiv.org/abs/1906.04721) |
+| `knowledge_distillation` | Trains the model to match a frozen copy of itself, then zeroes the weakest weights | [Hinton et al. 2015](https://arxiv.org/abs/1503.02531) |
+| Gradient-based importance | Removes filters whose removal hurts the loss least, estimated with gradients | [Molchanov et al. 2019](https://arxiv.org/abs/1906.10771) |
+| HRank | Removes filters whose feature maps carry little information | [Lin et al. 2020](https://arxiv.org/abs/2002.10179) |
+| Tucker / SVD decomposition | Splits big layers into smaller ones | [Kim et al. 2016](https://arxiv.org/abs/1511.06530) |
 
 `shrinker.describe_methods()` always lists every method that's installed.
 
-## What's inside
+## Functions
 
-```
-shrinker/            the library
-    core.py          compress(): copies your model and runs the chosen method on the copy
-    registry.py      keeps the list of methods; finds new method files automatically
-    dependency.py    works out which layers can be pruned safely, and prunes them without
-                     breaking the layers connected to them
-    utils.py         small tools for building smaller layers
-    benchmark.py     compare(): measures size, speed, accuracy
-    finetune.py      finetune(): retrains after compressing
-    methods/         one file per method  ←  this is where the team adds new methods
-examples/
-    test_models.py   six small models every method is automatically tested on
-    demo.py          the full flow from start to finish, with real numbers
-tests/               automatic checks, run on every push by GitHub (CI)
-```
+| Function | What it does |
+|---|---|
+| `compress(model, method, example_input=None, **options)` | Returns a smaller **copy** of your model using the chosen method. The original is never changed. If `example_input` is given, it checks the output shape is unchanged. |
+| `compare(original, compressed, example_input, val_loader=None, device="cpu")` | Prints params, size, latency, MFLOPs and accuracy for both models side by side, and returns the numbers as a dict. Accuracy needs `val_loader`. |
+| `finetune(model, train_loader, epochs=5, lr=1e-3, device="cpu", optimizer="adam")` | Retrains the compressed model in place (cross-entropy loss) to win back accuracy. `optimizer` can be `"adam"` or `"sgd"`. |
+| `analyze_sensitivity(model, loader, ratios=(0.1, 0.2, ...), score_fn=None, max_batches=None)` | Measures validation accuracy after pruning each prunable layer independently at different ratios, then reports the baseline and per-layer accuracy drop. Useful for finding which layers are most sensitive before compressing the model. |
+| `list_methods()` | Returns the names of all installed methods. |
+| `describe_methods()` | Returns a table of every installed method with its type and a one-line description. |
 
 Try the full flow yourself (no download needed, under a minute):
 
@@ -109,83 +103,22 @@ Try the full flow yourself (no download needed, under a minute):
 python examples/demo.py --synthetic
 ```
 
-## Adding a method (for the team)
+## Contributing
 
-Setup, once:
+Pick an open [issue](https://github.com/bandiarham07-bot/Model-Shrinker/issues) and comment that you are working on it. You can also open a new issue to suggest a method or report a bug.
 
-```bash
-git clone https://github.com/bandiarham07-bot/Model-Shrinker && cd Model-Shrinker
-pip install -e ".[dev]"
-pytest
-```
+1. Fork the repository and install it: `pip install -e ".[dev]"`
+2. Create a branch for your issue (`git checkout -b fix/short-name`)
+3. Make your changes. A new method is **one file** in `shrinker/methods/` named after the method, with one `@register` function (use [`l1_pruning.py`](shrinker/methods/l1_pruning.py) as a template)
+4. Run `pytest`. Every method is automatically tested on six small models
+5. Push the branch and open a pull request that mentions the issue (e.g. `Closes #12`)
 
-Then:
-
-1. Create **one file** in `shrinker/methods/`, e.g. `network_slimming.py`. The file name becomes
-   the method name.
-2. Write one function with `@register` above it. For pruning you only write **how important
-   each channel is**; the library removes the channels and fixes the connected layers.
-3. Run `pytest`. Your method is automatically tested on all six test models.
-4. Push to a branch and open a pull request. CI runs the same tests.
-
-Copy the pattern from [`l1_pruning.py`](shrinker/methods/l1_pruning.py) or
-[`fpgm.py`](shrinker/methods/fpgm.py). Full guide: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Rules
-
-1. **One file** in `shrinker/methods/`, named after the method. Optionally one test file in
-   `tests/`. **Don't change anything else.** Everything outside those two files is shared by the
-   whole team, and edits there cause conflicts and break other people's methods. If your method
-   really needs a new dependency or a change to the shared code, ask first.
-2. The method is one function:
-   ```python
-   from shrinker.registry import register
-
-   @register
-   def apply(model, ratio=0.3):      # every option needs a default, except `loader`
-       ...                           # `model` is already a copy: modify it freely
-       return model
-   ```
-   Shared option names: `ratio` (fraction to remove), `loader` (a DataLoader of `(x, y)` if the
-   method needs data), `example_input` (a sample batch if the method needs one).
-3. **Pruning methods only compute a score per channel.** The library does the surgery: it removes
-   the channels, fixes the following BatchNorm and the next layer, and skips unsafe layers.
-   ```python
-   from shrinker.utils import keep_indices, prunable_layers, prune_channels
-
-   for name, layer in prunable_layers(model):
-       scores = ...                                # one score per output channel, higher = keep
-       prune_channels(model, name, keep_indices(scores, ratio))
-   ```
-   Other methods replace layers with `shrinker.utils.replace_module(model, name, new_layer)`.
-4. **Remove, don't zero.** Setting weights to zero keeps the model the same size and speed.
-5. **Skip what you can't handle.** Leave unsupported layers or models unchanged and log it with
-   `logging`; never crash.
-6. **Run `pytest` before pushing**, and make sure it passes.
-
-Using an AI tool to write your method? Point it at this section first, and check its pull request
-only touches your own file.
-
-## References
-
-**Methods** (papers the team implements, one method file each)
-1. Molchanov et al. 2019, [Importance Estimation for Neural Network Pruning](https://arxiv.org/abs/1906.10771): remove the filters whose removal hurts the loss least, estimated with gradients
-2. He et al. 2019, [Filter Pruning via Geometric Median (FPGM)](https://arxiv.org/abs/1811.00250): remove redundant filters that duplicate others
-3. Lin et al. 2020, [HRank: Filter Pruning using High-Rank Feature Map](https://arxiv.org/abs/2002.10179): remove filters whose outputs carry little information
-4. Jacob et al. 2018, [Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference](https://arxiv.org/abs/1712.05877): store weights and activations as 8-bit integers
-5. Nagel et al. 2019, [Data-Free Quantization Through Weight Equalization and Bias Correction](https://arxiv.org/abs/1906.04721): make 8-bit quantization lose less accuracy, without data
-6. Kim et al. 2016, [Compression of Deep Convolutional Neural Networks for Fast and Low Power Mobile Applications](https://arxiv.org/abs/1511.06530): split big layers into smaller ones (Tucker decomposition / SVD)
-7. Hinton et al. 2015, [Distilling the Knowledge in a Neural Network](https://arxiv.org/abs/1503.02531): train the small model to copy the big one
-
-**Background reading** (ideas and studies behind the methods)
-1. Blalock et al. 2020, [What is the State of Neural Network Pruning?](https://arxiv.org/abs/2003.03033): how to judge pruning methods fairly
-2. Liu et al. 2019, [Rethinking the Value of Network Pruning](https://arxiv.org/abs/1810.05270): what really matters after structured pruning
-3. Frankle & Carbin 2019, [The Lottery Ticket Hypothesis](https://arxiv.org/abs/1803.03635): which weights in a network really matter
-4. Fang et al. 2023, [DepGraph: Towards Any Structural Pruning](https://arxiv.org/abs/2301.12900): how removing a channel affects connected layers
-5. Nagel et al. 2021, [A White Paper on Neural Network Quantization](https://arxiv.org/abs/2106.08295): practical guide to quantization
-6. Gou et al. 2021, [Knowledge Distillation: A Survey](https://arxiv.org/abs/2006.05525): overview of distillation
-7. Ma et al. 2018, [ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design](https://arxiv.org/abs/1807.11164): why fewer FLOPs doesn't always mean faster
+For questions, open an issue or contact the maintainers.
 
 ## License
 
 MIT
+
+---
+
+Created with ❤️ by WnCC
